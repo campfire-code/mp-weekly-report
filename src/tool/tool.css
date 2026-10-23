@@ -1,0 +1,34 @@
+/* 公众号数据周报：只用 kit.css 的变量，类名以 mp- 开头 */
+.mp-root { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 12px; }
+.mp-root > * { flex: none; }
+.mp-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.mp-card { padding: 12px 14px; display: grid; gap: 10px; }
+.mp-card p { margin: 0; }
+.mp-hd { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.mp-grow { flex: 1; }
+.mp-date { display: inline-flex; align-items: center; gap: 8px; }
+.mp-date .k-input { width: auto; }
+.mp-bad { color: var(--err); font-size: .9em; }
+.mp-progress { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+.mp-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; }
+.mp-kpi { display: grid; gap: 2px; padding: 8px 12px; border-radius: 10px; background: var(--chip); }
+.mp-kpi span { color: var(--muted); font-size: .88em; }
+.mp-kpi b { font-size: 1.6em; font-weight: 700; }
+.mp-kpi i { font-style: normal; font-size: .85em; color: var(--muted); }
+.mp-kpi i.up { color: var(--ok); }
+.mp-kpi i.down { color: var(--err); }
+.mp-ai { white-space: pre-wrap; line-height: 1.7; padding: 10px 12px; border-radius: 10px; background: var(--chip); }
+.mp-legend { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: .9em; }
+.mp-dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-left: 6px; }
+.mp-dot.new { background: var(--primary); }
+.mp-dot.cancel { background: var(--warn); }
+.mp-svg { width: 100%; height: auto; max-height: 120px; }
+.mp-new { fill: var(--primary); }
+.mp-cancel { fill: var(--warn); }
+.mp-grid { stroke: var(--line-strong); }
+.mp-axis { fill: var(--muted); font-size: 11px; }
+.mp-line-cum, .mp-line-read { stroke: var(--primary); }
+.mp-line-cum-dot, .mp-line-read-dot { fill: var(--primary); }
+.mp-tablebox { max-height: 300px; }
+.mp-title { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mp-empty { display: grid; justify-items: center; gap: 8px; padding: 36px 24px; text-align: center; }

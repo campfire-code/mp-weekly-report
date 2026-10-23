@@ -1,0 +1,13 @@
+{
+  "id": "w10",
+  "slug": "mp-weekly-report",
+  "name": "公众号数据周报",
+  "version": "0.1.0",
+  "repo": "campfire-code/mp-weekly-report",
+  "license": "MIT",
+  "ui": {
+    "layout": "a",
+    "palette": "rose"
+  },
+  "upstream": null
+}
