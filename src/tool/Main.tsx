@@ -64,90 +64,130 @@ export function Main({ ctx }: { ctx: Ctx }) {
   const k = useMemo(() => (report ? kpis(report) : []), [report]);
   const endErr = end > defaultEndDate(Date.now()) && !preview ? '截止日期最晚是昨天（早上 8 点前最晚是前天）' : !/^\d{4}-\d{2}-\d{2}$/.test(end) ? '请选择日期' : '';
   const idle = busy === '';
+  const maxRead = Math.max(1, ...(report?.articles ?? []).map((a) => a.read));
+  const hero = k[0];
+  const rest = k.slice(1);
+  const trend = (c?: string | null) => (c?.startsWith('+') ? 'up' : c?.startsWith('-') ? 'down' : '');
   return (
     <div className="mp-root">
-      <div className="mp-top">
-        <SourceSwitch conn={conn} disabled={!idle} />
-        {conn.source === 'demo' && <span className="k-help">示例数据：虚构的公众号和文章，仅用于体验</span>}
-      </div>
-      {conn.source === 'mp' && <SetupPanel conn={conn} open={setupOpen || !conn.ready} setOpen={setSetupOpen} onMsg={setNotice} />}
-      {notice && <div className={`k-notice ${notice.kind}`} role="status">{notice.text}</div>}
-
-      <section className="k-panel mp-card">
-        <div className="mp-hd">
-          <b>周报范围</b>
-          <label className="mp-date">截止到<input className="k-input" type="date" value={end} max={preview ? undefined : defaultEndDate(Date.now())} onChange={(e) => setEnd(e.target.value)} aria-label="截止日期" /></label>
-          <span className="k-help">取截止日往前 7 天，和再往前 7 天对比（阅读数据官方只有 {CONTENT_DATA_START} 之后的）</span>
-          <span className="mp-grow" />
-          <button className="k-btn primary" disabled={!idle || !conn.ready || !!endErr} onClick={() => void generate()}>{busy === 'fetch' ? <Loader2 size={15} className="k-spin" /> : <BarChart3 size={15} />}{report ? '重新生成' : '生成周报'}</button>
-        </div>
-        {endErr && <p className="mp-bad">{endErr}</p>}
-        {busy === 'fetch' && <div className="mp-progress"><Loader2 size={15} className="k-spin" />{progress || '处理中…'}<button className="k-btn" onClick={() => stop.current?.abort()}>停止</button></div>}
-      </section>
-
-      {report && (
-        <>
-          <section className="k-panel mp-card">
-            <div className="mp-hd">
-              <b>{report.cur.begin} ~ {report.cur.end}</b><span className="k-help">对比 {report.prev.begin} ~ {report.prev.end}</span><span className="mp-grow" />
-              <button className="k-btn" disabled={!idle} onClick={() => void save('md')}><Download size={15} />Markdown</button>
-              <button className="k-btn primary" disabled={!idle} onClick={() => void save('html')}><Download size={15} />导出 HTML 周报</button>
+      <aside className="mp-side">
+        <div className="mp-side-in">
+          <SourceSwitch conn={conn} disabled={!idle} />
+          {conn.source === 'demo' && <span className="k-help">示例数据：虚构的公众号和文章，仅用于体验</span>}
+          {conn.source === 'mp' && <SetupPanel conn={conn} open={setupOpen || !conn.ready} setOpen={setSetupOpen} onMsg={setNotice} />}
+          <div className="k-field">
+            <label className="k-label" htmlFor="mp-end">截止日期</label>
+            <input id="mp-end" className="k-input" type="date" value={end} max={preview ? undefined : defaultEndDate(Date.now())} onChange={(e) => setEnd(e.target.value)} />
+            <span className="k-help">取截止日往前 7 天，和再往前 7 天对比。阅读数据官方只有 {CONTENT_DATA_START} 之后的。</span>
+          </div>
+          {endErr && <p className="mp-bad">{endErr}</p>}
+          <button className="k-btn primary mp-wide" disabled={!idle || !conn.ready || !!endErr} onClick={() => void generate()}>{busy === 'fetch' ? <Loader2 size={15} className="k-spin" /> : <BarChart3 size={15} />}{report ? '重新生成' : '生成周报'}</button>
+          {busy === 'fetch' && <div className="mp-progress"><Loader2 size={15} className="k-spin" />{progress || '处理中…'}<button className="k-btn" onClick={() => stop.current?.abort()}>停止</button></div>}
+          {report && (
+            <div className="mp-out">
+              <span className="k-label">导出</span>
+              <button className="k-btn primary mp-wide" disabled={!idle} onClick={() => void save('html')}><Download size={15} />导出 HTML 周报</button>
+              <button className="k-btn mp-wide" disabled={!idle} onClick={() => void save('md')}><Download size={15} />导出 Markdown</button>
               <CopyButton text={reportMarkdown(report, ai)} label="复制全文" />
+              <button className="k-btn mp-wide" disabled={!idle || (!llmReady(settings.llm) && !preview)} onClick={() => void runAi()}>{busy === 'ai' ? <Loader2 size={15} className="k-spin" /> : <Sparkles size={15} />}{ai ? '重新解读' : '让 AI 解读'}</button>
+              {!llmReady(settings.llm) && !preview && <p className="mp-bad">还没配置大模型：到本工具的「设置」页填接口地址、密钥和模型名（兼容 OpenAI 接口格式）。</p>}
+              <span className="k-help">AI 解读只发送汇总数字和文章标题。</span>
             </div>
-            <div className="mp-kpis">
-              {k.map((x) => (
-                <div key={x.label} className="mp-kpi"><span>{x.label}</span><b className="k-num">{x.value}</b>
-                  <i className={x.change?.startsWith('+') ? 'up' : x.change?.startsWith('-') ? 'down' : ''}>{x.change ? `较上周 ${x.change}` : x.note ?? ' '}</i>
-                  {x.change && x.note && <i>{x.note}</i>}
+          )}
+        </div>
+      </aside>
+
+      <main className="mp-main">
+        {notice && <div className={`k-notice ${notice.kind}`} role="status">{notice.text}</div>}
+        {!report && idle && (
+          <section className="mp-empty">
+            <svg className="mp-art" viewBox="0 0 360 130" role="img" aria-label="两周的公众号数据汇成一页周报">
+              <rect x="10" y="30" width="86" height="80" rx="6" fill="var(--chip)" /><rect x="22" y="80" width="10" height="20" fill="var(--muted)" /><rect x="40" y="62" width="10" height="38" fill="var(--muted)" /><rect x="58" y="70" width="10" height="30" fill="var(--muted)" />
+              <text x="53" y="24" textAnchor="middle" fontSize="13" fill="var(--muted)">上周</text>
+              <rect x="116" y="30" width="86" height="80" rx="6" fill="var(--primary-soft)" /><rect x="128" y="62" width="10" height="38" fill="var(--primary)" /><rect x="146" y="46" width="10" height="54" fill="var(--primary)" /><rect x="164" y="54" width="10" height="46" fill="var(--primary)" />
+              <text x="159" y="24" textAnchor="middle" fontSize="13" fill="var(--ink)">本周</text>
+              <path d="M214 70h30m-8-8l8 8-8 8" stroke="var(--muted)" strokeWidth="2" fill="none" />
+              <rect x="256" y="10" width="94" height="110" rx="6" fill="var(--surface)" stroke="var(--line-strong)" />
+              <rect x="266" y="22" width="40" height="8" rx="3" fill="var(--ink)" /><rect x="266" y="40" width="74" height="6" rx="3" fill="var(--chip)" /><rect x="266" y="54" width="74" height="6" rx="3" fill="var(--chip)" /><rect x="266" y="68" width="52" height="6" rx="3" fill="var(--chip)" /><rect x="266" y="90" width="74" height="18" rx="3" fill="var(--primary-soft)" />
+            </svg>
+            <b>两周的公众号数据，汇成一页带环比的周报</b>
+            <span className="k-muted">先在左侧连接公众号（或切到「示例数据」体验），选好截止日期，点「生成周报」。</span>
+          </section>
+        )}
+
+        {report && (
+          <article className="mp-paper">
+            <header className="mp-mast">
+              <span className="mp-eyebrow">公众号数据周报</span>
+              <h2>{report.cur.begin} ~ {report.cur.end}</h2>
+              <span className="k-help">对比上一周 {report.prev.begin} ~ {report.prev.end}</span>
+            </header>
+
+            {hero && (
+              <div className="mp-hero">
+                <div className="mp-hero-main">
+                  <span>{hero.label}</span>
+                  <b className="k-num">{hero.value}</b>
+                  <i className={`mp-delta ${trend(hero.change)}`}>{hero.change ? `较上周 ${hero.change}` : hero.note ?? ' '}</i>
+                  {hero.change && hero.note && <em>{hero.note}</em>}
                 </div>
-              ))}
-            </div>
+                <div className="mp-rest">
+                  {rest.map((x) => (
+                    <div key={x.label} className="mp-kpi"><span>{x.label}</span><b className="k-num">{x.value}</b>
+                      <i className={`mp-delta ${trend(x.change)}`}>{x.change ? `较上周 ${x.change}` : x.note ?? ' '}</i>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {!report.prevReadable && report.readTotals && <p className="k-help">上一周在 {CONTENT_DATA_START} 之前，阅读数据没有可比的上周。</p>}
-          </section>
 
-          {report.userDays && (
-            <section className="k-panel mp-card">
-              <div className="mp-hd"><b>每日涨粉</b><span className="mp-legend"><i className="mp-dot new" />新增<i className="mp-dot cancel" />取关</span></div>
-              <div dangerouslySetInnerHTML={{ __html: pairBarsSvg(report.userDays) }} />
-              {report.userDays.some((d) => d.cumulate !== null) && <><span className="k-help">累计关注人数</span><div dangerouslySetInnerHTML={{ __html: lineSvg(report.userDays.map((d) => d.date), report.userDays.map((d) => d.cumulate), 'mp-line-cum', '累计关注人数') }} /></>}
-              {report.bySource.length > 0 && (
-                <div className="k-scroll mp-tablebox"><table className="k-table"><thead><tr><th>关注渠道</th><th>新增</th><th>取关</th></tr></thead>
-                  <tbody>{report.bySource.map((s) => <tr key={s.source}><td>{s.source}</td><td className="k-num">{s.newUser}</td><td className="k-num">{s.cancelUser}</td></tr>)}</tbody></table></div>
-              )}
-            </section>
-          )}
+            {ai && <section className="mp-sec"><h3>解读</h3><p className="mp-ai">{ai}</p></section>}
 
-          {report.readDays && (
-            <section className="k-panel mp-card">
-              <div className="mp-hd"><b>每日阅读人数</b><span className="k-help">每天的阅读人数；周合计是每天相加，同一个人不同天阅读会重复计</span></div>
-              <div dangerouslySetInnerHTML={{ __html: lineSvg(report.readDays.map((d) => d.date), report.readDays.map((d) => d.read), 'mp-line-read', '每日阅读人数') }} />
-              {report.readSources.length > 0 && <p className="k-help">阅读来源（按天累加）：{report.readSources.map((s) => `${s.scene} ${fmtNum(s.users)}`).join('，')}</p>}
-            </section>
-          )}
+            {report.userDays && (
+              <section className="mp-sec">
+                <h3>每日涨粉<span className="mp-legend"><i className="mp-dot new" />新增<i className="mp-dot cancel" />取关</span></h3>
+                <div dangerouslySetInnerHTML={{ __html: pairBarsSvg(report.userDays) }} />
+                {report.userDays.some((d) => d.cumulate !== null) && <><span className="k-help">累计关注人数</span><div dangerouslySetInnerHTML={{ __html: lineSvg(report.userDays.map((d) => d.date), report.userDays.map((d) => d.cumulate), 'mp-line-cum', '累计关注人数') }} /></>}
+                {report.bySource.length > 0 && (
+                  <div className="k-scroll mp-tablebox"><table className="k-table"><thead><tr><th>关注渠道</th><th>新增</th><th>取关</th></tr></thead>
+                    <tbody>{report.bySource.map((s) => <tr key={s.source}><td>{s.source}</td><td className="k-num">{s.newUser}</td><td className="k-num">{s.cancelUser}</td></tr>)}</tbody></table></div>
+                )}
+              </section>
+            )}
 
-          <section className="k-panel mp-card">
-            <div className="mp-hd"><b>AI 解读</b><span className="k-help">可选。只把汇总数字和文章标题发给你在设置页配置的大模型</span><span className="mp-grow" />
-              <button className="k-btn" disabled={!idle || (!llmReady(settings.llm) && !preview)} onClick={() => void runAi()}>{busy === 'ai' ? <Loader2 size={15} className="k-spin" /> : <Sparkles size={15} />}{ai ? '重新解读' : '让 AI 解读'}</button></div>
-            {!llmReady(settings.llm) && !preview && <p className="mp-bad">还没配置大模型：到本工具的「设置」页填接口地址、密钥和模型名（兼容 OpenAI 接口格式）。</p>}
-            {ai && <p className="mp-ai">{ai}</p>}
-          </section>
+            {report.readDays && (
+              <section className="mp-sec">
+                <h3>每日阅读人数</h3><span className="k-help">每天的阅读人数；周合计是每天相加，同一个人不同天阅读会重复计</span>
+                <div dangerouslySetInnerHTML={{ __html: lineSvg(report.readDays.map((d) => d.date), report.readDays.map((d) => d.read), 'mp-line-read', '每日阅读人数') }} />
+                {report.readSources.length > 0 && <p className="k-help">阅读来源（按天累加）：{report.readSources.map((s) => `${s.scene} ${fmtNum(s.users)}`).join('，')}</p>}
+              </section>
+            )}
 
-          {report.articles && (
-            <section className="k-panel mp-card">
-              <div className="mp-hd"><b>本周发表的文章</b><span className="k-help">按阅读人数排序；指标是发表日至统计日的累计（官方每篇只统计发表后 30 天）</span></div>
-              {report.articles.length === 0 ? <p className="k-muted">本周没有发表文章。</p> : (
-                <div className="k-scroll mp-tablebox"><table className="k-table">
-                  <thead><tr><th>文章</th><th>发表日</th><th>阅读人数</th><th>分享</th><th>在看</th><th>点赞</th><th>留言</th><th>阅读后关注</th><th>读完率</th></tr></thead>
-                  <tbody>{report.articles.map((a) => <tr key={a.msgid}><td className="mp-title">{a.title}</td><td className="k-num">{a.publishDate}</td><td className="k-num"><b>{fmtNum(a.read)}</b></td><td className="k-num">{a.share}</td><td className="k-num">{a.zaikan}</td><td className="k-num">{a.like}</td><td className="k-num">{a.comment}</td><td className="k-num">{a.readSubscribe}</td><td className="k-num">{fmtRate(a.finishRate)}</td></tr>)}</tbody>
-                </table></div>
-              )}
-            </section>
-          )}
+            {report.articles && (
+              <section className="mp-sec">
+                <h3>本周发表的文章</h3><span className="k-help">按阅读人数排序；指标是发表日至统计日的累计（官方每篇只统计发表后 30 天）</span>
+                {report.articles.length === 0 ? <p className="k-muted">本周没有发表文章。</p> : (
+                  <ol className="mp-rank">
+                    {report.articles.map((a, i) => (
+                      <li key={a.msgid} className="mp-art-row">
+                        <span className="mp-no k-num">{i + 1}</span>
+                        <div className="mp-art-body">
+                          <div className="mp-art-t"><b>{a.title}</b><span className="k-muted k-num">{a.publishDate}</span></div>
+                          <div className="mp-bar"><i style={{ width: `${(a.read / maxRead) * 100}%` }} /></div>
+                          <div className="mp-art-n k-num"><span>阅读 <b>{fmtNum(a.read)}</b></span><span>分享 {a.share}</span><span>在看 {a.zaikan}</span><span>点赞 {a.like}</span><span>留言 {a.comment}</span><span>阅读后关注 {a.readSubscribe}</span><span>读完率 {fmtRate(a.finishRate)}</span></div>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </section>
+            )}
 
-          {Object.entries(report.errors).map(([key, text]) => <div key={key} className="k-notice err">{({ users: '涨粉数据', cumulate: '累计关注数据', biz: '阅读数据', articles: '文章明细' } as Record<string, string>)[key]}没有取到：{text}</div>)}
-        </>
-      )}
-      {!report && idle && <section className="k-panel mp-empty"><BarChart3 size={26} /><b>一键生成公众号数据周报</b><span className="k-muted">先连接公众号（或切到「示例数据」体验），选好截止日期，点「生成周报」。</span></section>}
+            {Object.entries(report.errors).map(([key, text]) => <div key={key} className="k-notice err">{({ users: '涨粉数据', cumulate: '累计关注数据', biz: '阅读数据', articles: '文章明细' } as Record<string, string>)[key]}没有取到：{text}</div>)}
+          </article>
+        )}
+      </main>
     </div>
   );
 }

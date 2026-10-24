@@ -75,12 +75,12 @@ export function SetupPanel({ conn, open, setOpen, onMsg }: { conn: Conn; open: b
       {open && (
         <div className="wx-setup-body">
           <div className="wx-setup-grid">
-            <div className="k-field"><label className="k-label" htmlFor="mp-appid">AppID</label><input id="mp-appid" className="k-input" autoComplete="off" value={draft.appId} placeholder="wx 开头的 18 位" onChange={(e) => setDraft({ ...draft, appId: e.target.value })} /></div>
-            <div className="k-field"><label className="k-label" htmlFor="mp-secret">AppSecret</label><input id="mp-secret" className="k-input" type="password" autoComplete="off" value={draft.appSecret} placeholder="开发密钥里的 AppSecret" onChange={(e) => setDraft({ ...draft, appSecret: e.target.value })} /></div>
+            <div className="k-field"><label className="k-label" htmlFor="mp-appid">AppID（应用 ID）</label><input id="mp-appid" className="k-input" autoComplete="off" value={draft.appId} placeholder="公众号的 AppID（应用 ID），共 18 位" onChange={(e) => setDraft({ ...draft, appId: e.target.value })} /></div>
+            <div className="k-field"><label className="k-label" htmlFor="mp-secret">AppSecret（应用密钥）</label><input id="mp-secret" className="k-input" type="password" autoComplete="off" value={draft.appSecret} placeholder="开发密钥里的 AppSecret" onChange={(e) => setDraft({ ...draft, appSecret: e.target.value })} /></div>
           </div>
           <ol className="wx-pre">
             <li>数据统计接口只开放给<b>已认证</b>的公众号 / 服务号（官方文档写明「仅认证」），未认证的账号会提示没有权限。</li>
-            <li>到「微信开发者平台（developers.weixin.qq.com/platform）→ 我的业务 → 选择这个公众号 → 开发密钥」复制 AppID，生成并复制 <b>AppSecret</b>（只显示一次）。</li>
+            <li>到「微信开发者平台（微信官方网站）→ 我的业务 → 选择这个公众号 → 开发密钥」复制 AppID，生成并复制 <b>AppSecret</b>（只显示一次）。</li>
             <li>在同一页的「<b>API IP 白名单</b>」里加入本机所在网络的公网出口 IP（要固定 IP，动态 IP 会变），否则报 40164。</li>
             <li>数据每天<b>早上 8 点后</b>才有前一天的数据，所以最好在周一上午 8 点后生成上周周报。</li>
           </ol>
